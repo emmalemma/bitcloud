@@ -1,6 +1,6 @@
 var http = require('http');
-var cookie = require( "../cookie-node" );
-var paperboy = require( "../node-paperboy" );
+var cookie = require( "ext/cookie-node" );
+var paperboy = require( "ext/node-paperboy" );
 
 var sys = require('sys');
 var path = require('path');
