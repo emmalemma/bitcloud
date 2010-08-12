@@ -1,23 +1,35 @@
 var http = require('http');
 var cookie = require( "../cookie-node" );
+var paperboy = require( "../node-paperboy" );
+
+var sys = require('sys');
+var path = require('path');
 
 var done_ops = {};
 var oplist = [];
 var opowners = {};
 
+var PORT = 9292;
+var WEBROOT = path.join(path.dirname(__filename), 'public');
+console.log("serving public files from " + WEBROOT);
+
 http.createServer(function (request, response) {
-	switch (request.method)
-	{
-		case 'GET':
-			pop_op(request, response);
-			break;
-		case 'POST':
-			request.on('data', push_op);
-			break;
-		case 'PUT':
-			request.on('data', return_op);
-			break;
-	}
+	if (request.url.split('/')[1] == 'public') { //kind of a hack, but oh well
+		request.url = request.url.slice(7);
+		do_paperboy(request, response);
+	} else
+		switch (request.method)
+		{
+			case 'GET':
+				pop_op(request, response);
+				break;
+			case 'POST':
+				request.on('data', push_op);
+				break;
+			case 'PUT':
+				request.on('data', return_op);
+				break;
+		}
 	
 	
 	function push_op(chunk)
@@ -64,7 +76,33 @@ http.createServer(function (request, response) {
 		  response.end(JSON.stringify({status: "success"}));
 		}
 	}
-}).listen(9292);
+}).listen(PORT);
+
+function do_paperboy(req, res)
+{
+	var ip = req.connection.remoteAddress;
+  paperboy
+    .deliver(WEBROOT, req, res)
+    .addHeader('Expires', 300)
+    .addHeader('X-PaperRoute', 'Node')
+    .before(function() {
+      sys.log('Received Request')
+    })
+    .after(function(statCode) {
+      console.log(statCode, req.url, ip);
+    })
+    .error(function(statCode,msg) {
+      res.writeHead(statCode, {'Content-Type': 'text/plain'});
+      res.write("Error: " + statCode);
+      res.close();
+      console.log(statCode, req.url, ip, msg);
+    })
+    .otherwise(function(err) {
+      var statCode = 404;
+      res.writeHead(statCode, {'Content-Type': 'text/plain'});
+      console.log(statCode, req.url, ip, err);
+    });
+}
 
 function setup_session(request, response)
 {
